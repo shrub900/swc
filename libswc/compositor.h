@@ -55,6 +55,7 @@ struct compositor_view {
 
 	/* Whether or not the view is visible (mapped). */
 	bool visible;
+	bool always_top;
 
 	/* The box that the surface covers (including it's border). */
 	pixman_box32_t extents;
@@ -86,6 +87,8 @@ void compositor_view_set_parent(struct compositor_view *view, struct compositor_
 
 void compositor_view_show(struct compositor_view *view);
 void compositor_view_hide(struct compositor_view *view);
+
+void raise_window_top(struct compositor_view *view);
 
 void compositor_view_set_border_color(struct compositor_view *view, uint32_t color);
 void compositor_view_set_border_width(struct compositor_view *view, uint32_t width);

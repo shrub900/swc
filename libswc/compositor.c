@@ -450,6 +450,7 @@ compositor_create_view(struct surface *surface)
 	view->window = NULL;
 	view->parent = NULL;
 	view->visible = false;
+	view->always_top = false;
 	view->extents.x1 = 0;
 	view->extents.y1 = 0;
 	view->extents.x2 = 0;
@@ -536,6 +537,15 @@ compositor_view_hide(struct compositor_view *view)
 		if (other->parent == view)
 			compositor_view_hide(other);
 	}
+}
+
+void
+raise_window_top(struct compositor_view *view)
+{
+	wl_list_remove(&view->link);
+	wl_list_insert(&compositor.views, &view->link);
+	damage_view(view);
+	update(&view->base);
 }
 
 void
