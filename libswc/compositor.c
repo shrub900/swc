@@ -434,6 +434,34 @@ static const struct view_impl view_impl = {
 	.move = move,
 };
 
+static void
+restack_view_for_layer(struct compositor_view *view, bool raise)
+{
+	struct compositor_view *other;
+	struct wl_list *insert_after = compositor.views.prev;
+
+	wl_list_for_each (other, &compositor.views, link) {
+		if (other == view)
+			continue;
+
+		if (other->stack_layer > view->stack_layer) {
+			insert_after = &other->link;
+			continue;
+		}
+
+		if (other->stack_layer == view->stack_layer) {
+			insert_after = raise ? other->link.prev : &other->link;
+			break;
+		}
+
+		insert_after = other->link.prev;
+		break;
+	}
+
+	wl_list_remove(&view->link);
+	wl_list_insert(insert_after, &view->link);
+}
+
 struct compositor_view *
 compositor_create_view(struct surface *surface)
 {
@@ -451,6 +479,7 @@ compositor_create_view(struct surface *surface)
 	view->parent = NULL;
 	view->visible = false;
 	view->always_top = false;
+	view->stack_layer = STACK_LAYER_NORMAL;
 	view->extents.x1 = 0;
 	view->extents.y1 = 0;
 	view->extents.x2 = 0;
@@ -462,6 +491,7 @@ compositor_create_view(struct surface *surface)
 	wl_signal_init(&view->destroy_signal);
 	surface_set_view(surface, &view->base);
 	wl_list_insert(&compositor.views, &view->link);
+	restack_view_for_layer(view, true);
 
 	return view;
 }
@@ -542,8 +572,27 @@ compositor_view_hide(struct compositor_view *view)
 void
 raise_window_top(struct compositor_view *view)
 {
-	wl_list_remove(&view->link);
-	wl_list_insert(&compositor.views, &view->link);
+	view->stack_layer = STACK_LAYER_OVERLAY;
+	restack_view_for_layer(view, true);
+	damage_view(view);
+	update(&view->base);
+}
+
+void
+compositor_view_set_stack_layer(struct compositor_view *view, uint32_t layer, bool raise)
+{
+	if (view->stack_layer == layer) {
+		if (raise) {
+			restack_view_for_layer(view, true);
+			damage_view(view);
+			update(&view->base);
+		}
+		return;
+	}
+
+	damage_view(view);
+	view->stack_layer = layer;
+	restack_view_for_layer(view, raise);
 	damage_view(view);
 	update(&view->base);
 }
